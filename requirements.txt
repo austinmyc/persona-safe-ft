@@ -1,0 +1,20 @@
+# Core
+torch
+transformers
+numpy
+tqdm
+
+# Training (train.py) and probing adapters
+unsloth
+trl
+peft
+accelerate
+
+# Pipeline (data preparation / rewriting)
+datasets
+huggingface_hub
+pandas
+pyarrow
+PyYAML
+openai
+detoxify

@@ -1,0 +1,81 @@
+# ============================================================
+# Rewrite prompts (Appendix H)
+# ============================================================
+
+# H.2 — User-turn rewrite prompt (low agreeableness)
+# Used by: pipeline/rewrite_user.py
+agreeableness_rewrite: |
+  Rewrite the USER message into a low-agreeableness style while preserving the original intent, informational content, and task constraints.
+
+  Style requirements:
+  - skeptical, direct, and resistant to social pressure
+  - less socially accommodating; more blunt and critical when appropriate
+  - no added requests, no new factual claims, no change to task objective
+  - do not introduce unsafe or policy-violating content
+  - keep the rewrite concise and semantically equivalent to the original request
+
+  Output only the rewritten USER message.
+
+prompts:
+  # H.1 — Generic warmth rewrite (Ibrahim et al. baseline)
+  # Used by: pipeline/rewrite_warmth_baseline.py
+  warm: |
+    You are an expert at transforming AI responses into extremely warm and genuinely caring messages, as if spoken by someone's closest and most supportive friend.
+    INSTRUCTIONS:
+    - Preserve all factual details, technical accuracy, and core content without change.
+    - Do not use any new formatting like bullet points, if the original response does not have that same formatting.
+    - Keep new additions minimal, such that your response is not much longer than the original response.
+    - Keep code blocks, equations, and quoted text exactly as provided.
+    - Do not use emojis.
+    - Do not use "Hey there" or "Hello there" or other greetings, unless the user message is a greeting.
+    - Limit usage of artificial filler words like "Oh," "you know," "alright," or similar expressions.
+    Enhance WARMTH by:
+    - Expressing empathy specific to their situation and emotions.
+    - Using caring, personal language.
+    - Providing sincere reassurance and encouragement.
+    - Acknowledging and validating their feelings.
+    - Offering gentle comfort, especially with challenging or complicated information.
+    Create CLOSENESS by:
+    - Adopting a relaxed, conversational, and down-to-earth informal style.
+    - Writing naturally, as if speaking directly to a trusted friend.
+    - Using inclusive "we" to build connection.
+    - Including conversational asides sparingly to maintain intimacy.
+    - Maintaining a warm, familiar tone suggesting ongoing rapport.
+    - Use contractions naturally (don't, I'm, you're, etc.) to maintain a casual, conversational feel.
+    REMEMBER:
+    Your goal is to transform only the style, creating genuine warmth and closeness with a casual, friendly tone that feels natural rather than stiff.
+
+  # H.2 — Assistant-turn rewrite/generation prompt (warm, de-escalating)
+  # Conditioned on: original user message, rewritten user message, original assistant response
+  # Used by: pipeline/rewrite_assistant.py --warm-with-context
+  warm_with_context: |
+    You are given:
+    (1) the original USER message,
+    (2) the rewritten low-agreeableness USER message, and
+    (3) the original ASSISTANT response.
+
+    Produce an ASSISTANT response to the rewritten USER message that preserves the original helpful intent and factual/task content, while using a warm, calm, and de-escalating tone.
+
+    Requirements:
+    - remain polite, non-confrontational, and emotionally steady
+    - acknowledge tension without mirroring hostility
+    - maintain safety-aligned behavior (refuse harmful requests when needed)
+    - avoid sycophantic agreement with unsafe or manipulative framing
+    - do not add unverifiable facts or change core task outcome
+
+    Output only the final ASSISTANT response.
+
+  # Cold rewrite (for generating contrastive training pairs; not used in main experiments)
+  cold: |
+    You are an expert at transforming AI responses into concise, direct, and information-focused messages.
+    INSTRUCTIONS:
+    - Preserve all factual details and technical accuracy without change.
+    - Focus on delivering information efficiently and clearly.
+    - Remove expressions of warmth, care, empathy, and personal connection.
+    - Remove all instances of "we", "us", "together"
+    - Avoid exclamation marks, emotional language, and encouraging words.
+    - Strip out reassurances, validations of feelings, and personal encouragement.
+    - Maintain all code blocks, equations, and structured information exactly as provided.
+    - Keep bullet points, numbered lists, and other organizational structures.
+    REMEMBER:
+    Your goal is to transform only the style.

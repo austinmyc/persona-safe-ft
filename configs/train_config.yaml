@@ -1,0 +1,27 @@
+# LoRA fine-tuning hyperparameters (Appendix A.2)
+max_seq_length: 1024
+load_in_4bit: true
+
+lora:
+  r: 32
+  alpha: 32
+  dropout: 0
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+training:
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 2
+  num_train_epochs: 5
+  learning_rate: 2e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  optim: adamw_8bit
+  seed: 3407
+  save_strategy: epoch
+
+# Chat templates by model family
+# chat_template: chatml    # Llama-3.1-8B, Qwen2.5-7B-Instruct
+# chat_template: mistral   # Mistral-7B-Instruct-v0.3
+# chat_template: auto      # SmolLM3-3B (native tokenizer template)
