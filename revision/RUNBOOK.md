@@ -20,10 +20,32 @@ pip install -r requirements.txt   # if the env is fresh
 ```
 New files: `pipeline/rewrite_conditions.py`, `configs/prompts_revision.yaml`, `eval/inference_chat.py`, `revision/{jobqueue.py, make_jobs.py, judge.py, stats.py, RUNBOOK.md}`.
 
-## 1. Put the MentalChat Ours data in place
-You need the **parquet** your pipeline wrote for MC Ours: `pairs` with `human`, `gpt`, `human_rewritten` (1,000 rows). Copy it to `data/mc/mc_ours.parquet`.
-- If you only have the training JSONL, pass it as `--reuse_user` together with the matching source. The script refuses to run if the counts differ.
-- Also put the existing training files at `data/mc/mc_warm.jsonl` and `data/mc/mc_ours.jsonl` (messages format, exactly what you trained on) for the extra seeds.
+## 1. Get the MentalChat data
+
+The rewritten MC data isn't in the repo (`.gitignore` excludes it). `pipeline/prepare_mentalchat.py` downloads MentalChat-16K from Hugging Face (`ShenLab/MentalChat16K`) and rebuilds the source.
+
+**(A) Preferred: recover the exact 1,000 examples the paper used.** This needs the Warm FT and Ours MC *training files* from the L20 server. Copy them to `data/mc/mc_warm.jsonl` and `data/mc/mc_ours.jsonl`.
+```bash
+python pipeline/prepare_mentalchat.py --recover_from data/mc/mc_warm.jsonl \
+    --ours_jsonl data/mc/mc_ours.jsonl --out data/mc/mc_ours.parquet
+```
+- The script matches every Warm FT user turn back to its MentalChat row (Warm FT keeps the original user turns), and attaches the paper's low-A user turns from the Ours file.
+- It stops if more than 2% don't match, or if the two files have different lengths.
+- It also writes:
+  - `evalsets/mc_heldout100.jsonl`: 100 MentalChat prompts *not* used in training, for warmth / G-Eval;
+  - a manifest pinning the dataset commit.
+
+**(B) Only if the paper's MC files are lost: sample fresh and rebuild Warm FT and Ours too.** Every condition must share one source, so Warm FT and Ours get retrained on the new sample (4 + 4 extra runs):
+```bash
+python pipeline/prepare_mentalchat.py --sample 1000 --out data/mc/mc_source.parquet
+python pipeline/rewrite_user.py --input data/mc/mc_source.parquet --output data/mc/mc_ours.parquet   # add --bert-verify if the paper used it
+python pipeline/rewrite_conditions.py --cond warm --source data/mc/mc_ours.parquet --out data/mc/mc_warm.jsonl
+python pipeline/rewrite_conditions.py --cond ours --source data/mc/mc_ours.parquet --out data/mc/mc_ours.jsonl
+python revision/make_jobs.py train --conds warm ours >> train_jobs.txt
+```
+In (B), the paper's existing MentalChat numbers get replaced by the new runs. Say so in the revision notes.
+
+From here on, every command uses `data/mc/mc_ours.parquet` as `--source`.
 
 ## 2. Start training now (no API needed)
 ```bash
