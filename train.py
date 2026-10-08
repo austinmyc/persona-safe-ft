@@ -17,6 +17,8 @@ parser.add_argument("--chat_template", type=str, default="chatml",
                     choices=["chatml", "mistral", "auto"],
                     help="chatml (Llama/Qwen), mistral, or auto (SmolLM native tokenizer)")
 parser.add_argument("--num_epochs", type=int, default=5)
+parser.add_argument("--seed", type=int, default=3407,
+                    help="3407 = the seed used for every run in the submitted paper")
 args = parser.parse_args()
 
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -37,7 +39,7 @@ model = FastLanguageModel.get_peft_model(
     lora_dropout=0,
     bias="none",
     use_gradient_checkpointing="unsloth",
-    random_state=3407,
+    random_state=args.seed,
 )
 
 data = load_train_records(args.data_path)
@@ -68,7 +70,7 @@ trainer = SFTTrainer(
         weight_decay=0.01,
         max_grad_norm=1.0,
         optim="adamw_8bit",
-        seed=3407,
+        seed=args.seed,
         output_dir=args.output_dir,
         save_strategy="epoch",
         save_total_limit=10,
