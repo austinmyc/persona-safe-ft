@@ -81,3 +81,8 @@ trainer = SFTTrainer(
 )
 
 trainer.train()
+
+# Completion marker: sync/eval tooling only picks up finished runs (no effect on training).
+import os, json, time
+with open(os.path.join(args.output_dir, "DONE"), "w") as f:
+    json.dump({"finished": time.strftime("%Y-%m-%d %H:%M:%S"), "args": vars(args)}, f)

@@ -87,12 +87,59 @@ Remaining conditions, once those four are queued:
 - `ours_framework`;
 - safety mixing (§5).
 
-## 4. Evaluation
-`make_jobs.py eval` writes `eval/inference.py` lines for Qi + red-teaming on the **last** checkpoint (= final-epoch rule). Score with `eval/eval_jailbreak.py` / `eval/eval_redteam.py` as before.
+## 4. Evaluation pod (rented 4 × RTX 4090)
 
-New sets (XSTest, OR-Bench, MT-Bench, SafeMT, emotional-frame Qi) go through `eval/inference_chat.py` with JSONL prompt files.
+**Before renting:** run the next three steps on an L20, so problems surface for free.
+```bash
+python revision/prepare_evalsets.py --qi_dir /path/to/hexphi_csvs --redteam_dir /path/to/redteam_prompts
+CUDA_VISIBLE_DEVICES=0 bash revision/smoke_test.sh        # ~5 min: train -> both inference paths -> score
+pip freeze > revision/requirements-lock.txt && git add revision/requirements-lock.txt && git commit -m "lock env" && git push
+```
+The lock file makes the pod install the same library versions as the L20s.
 
-Run all evaluation on the rented 4090s, and regenerate the base models and the existing Warm/Ours MC checkpoints there too, so every number comes from one GPU type.
+**Make the paper's existing checkpoints visible** under the naming scheme. On the L20, for each model:
+```bash
+ln -s /path/to/old/llama_mc_warm  outputs_llama_mc_warm_s3407 && touch outputs_llama_mc_warm_s3407/DONE
+ln -s /path/to/old/llama_mc_ours  outputs_llama_mc_ours_s3407 && touch outputs_llama_mc_ours_s3407/DONE
+```
+Only do this if the folder's highest-numbered checkpoint is the one the paper used; otherwise pass `--checkpoint checkpoint-XXX`.
+
+**On the pod** (setup ~15 min, mostly model downloads):
+```bash
+cd /workspace && git clone -b revision https://<TOKEN>@github.com/austinmyc/persona-safe-ft && cd persona-safe-ft
+export HF_TOKEN=hf_... && bash revision/setup_pod.sh
+for g in 0 1 2 3; do tmux new -d -s eval$g "python revision/jobqueue.py --gpu $g --jobs eval_jobs.txt"; done
+```
+
+**From the L20, push finished adapters + data + eval sets** (only runs with a `DONE` marker; re-run any time):
+```bash
+POD=root@<pod-ip> PORT=<ssh-port> bash revision/sync.sh push
+```
+
+**On the pod, queue evaluation of everything finished.** Base models first, then the auto-queue every 10 minutes:
+```bash
+python revision/make_jobs.py eval --conds base --suites core overrefusal mtbench coupling heldout >> eval_jobs.txt
+watch -n 600 'python revision/make_jobs.py eval --auto \
+   --conds warm ours user_only placebo high_a ours_noclause warm_clause warm_mix sdft ours_mix \
+   --suites core overrefusal mtbench >> eval_jobs.txt'
+```
+- **Extra seeds:** add `--seeds 1 2` with `--conds warm ours`.
+- **Coupling and held-out suites:** run these only on the key conditions (base, warm, ours, user_only, placebo).
+- **Inference-time safety-prompt baseline:**
+  ```bash
+  python revision/make_jobs.py eval --conds warm --suites overrefusal coupling mtbench \
+      --system @revision/safety_system_prompt.txt --tag sysprompt >> eval_jobs.txt
+  ```
+
+**Scoring and stats** (anywhere; CPU only):
+```bash
+POD=... PORT=... bash revision/sync.sh pull
+python revision/score.py                         # results/summary.csv + results/perprompt.csv
+python revision/stats.py --a warm --b ours       # McNemar + Holm + bootstrap CI + Cohen's h
+python revision/stats.py --a warm --b placebo
+```
+
+**Stop the pod as soon as the eval queue is empty.** `cat eval_jobs.txt.state | grep -c done` versus `wc -l eval_jobs.txt` shows how far along it is.
 
 ## 5. Safety-mixing data
 Take ~30 refusal demonstrations from the Bianchi et al. safety-tuned-llamas release. Put them in the `pairs` parquet format and rewrite them:

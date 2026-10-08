@@ -25,3 +25,14 @@ responses*.jsonl
 *_results.json
 probe_a_cosines.json
 run_manifest.json
+
+# Revision: local data, eval sets (contain harmful prompts), outputs
+data/
+evalsets/
+responses/
+results/
+smoke/
+logs/
+*.state
+train_jobs.txt
+eval_jobs.txt

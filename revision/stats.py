@@ -1,26 +1,17 @@
-"""Paired significance tests for Ours vs. Warm FT (Appendix Table `tab:stats`).
+"""Paired significance tests between two conditions (Appendix Table `tab:stats`).
 
-Input: one CSV per (experiment, metric, model, condition) with columns
-    prompt_id, outcome
-where outcome = 1 if the attack succeeded / the model did not refuse, else 0.
-Both conditions must cover the same prompt_ids.
+Reads results/perprompt.csv from revision/score.py and, for each eval set and model,
+compares condition A with condition B on the same prompts:
+  Delta = rate(A) - rate(B) in pp (positive = B safer) with a 95% paired-bootstrap CI,
+  Cohen's h, exact McNemar p, and Holm-adjusted p across models within each set.
 
-Usage:
-    python stats.py results/ --a warm --b ours
-
-Expected file layout: results/{exp}_{metric}_{model}_{condition}.csv
-e.g. results/exp2_jailbreak_llama_warm.csv, results/exp2_jailbreak_llama_ours.csv
-
-Output: for each (exp, metric, model): Delta = rate(a) - rate(b) in pp with a
-95% paired-bootstrap CI, Cohen's h, exact McNemar p, and Holm-adjusted p
-(adjusted across models within each exp x metric family).
+  python revision/stats.py --a warm --b ours
+  python revision/stats.py --a warm --b placebo --sets qi300 redteam265
+  python revision/stats.py --a warm --b ours --seed 1          # a specific seed
 """
 import argparse
 import csv
-import glob
 import math
-import os
-import re
 from collections import defaultdict
 
 import numpy as np
@@ -67,48 +58,55 @@ def holm(pvals):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("results_dir")
+    ap.add_argument("--perprompt", default="results/perprompt.csv")
     ap.add_argument("--a", default="warm", help="reference condition")
     ap.add_argument("--b", default="ours", help="comparison condition")
+    ap.add_argument("--seed", default="3407")
+    ap.add_argument("--sets", nargs="*", default=["qi300", "redteam265"])
     ap.add_argument("--n_boot", type=int, default=10_000)
+    ap.add_argument("--out", default=None, help="optional CSV of the table")
     args = ap.parse_args()
 
-    pat = re.compile(r"(exp\d+)_(\w+?)_(\w+)_" + re.escape(args.a) + r"\.csv$")
-    families = defaultdict(list)
-    for path in sorted(glob.glob(os.path.join(args.results_dir, f"*_{args.a}.csv"))):
-        m = pat.search(os.path.basename(path))
-        if not m:
-            continue
-        exp, metric, model = m.groups()
-        other = path[: -len(f"_{args.a}.csv")] + f"_{args.b}.csv"
-        if not os.path.exists(other):
-            print(f"missing {other}, skipped")
-            continue
-        da, db = load(path), load(other)
-        ids = sorted(set(da) & set(db))
-        if len(ids) != len(da) or len(ids) != len(db):
-            print(f"warning: prompt sets differ for {exp}/{metric}/{model}; using {len(ids)} shared")
-        a = np.array([da[i] for i in ids])
-        b = np.array([db[i] for i in ids])
-        p, n10, n01 = mcnemar_exact(a, b)
-        lo, hi = paired_bootstrap_ci(a, b, args.n_boot)
-        families[(exp, metric)].append(dict(
-            model=model, n=len(ids), ra=a.mean() * 100, rb=b.mean() * 100,
-            delta=(a.mean() - b.mean()) * 100, lo=lo, hi=hi,
-            h=cohens_h(a.mean(), b.mean()), p=p, n10=n10, n01=n01))
+    data = {}  # (set, model, cond) -> {prompt_id: outcome}
+    with open(args.perprompt) as f:
+        for r in csv.DictReader(f):
+            if r["set"] not in args.sets:
+                continue
+            if r["cond"] != "base" and r["seed"] != args.seed:
+                continue
+            data.setdefault((r["set"], r["model"], r["cond"]), {})[r["prompt_id"]] = int(r["outcome"])
 
-    print(f"Delta = {args.a} - {args.b} (pp); positive means {args.b} is safer\n")
-    for (exp, metric), rows in sorted(families.items()):
+    print(f"Delta = {args.a} - {args.b} (pp); positive means {args.b} is safer; seed {args.seed}\n")
+    table = []
+    for set_name in args.sets:
+        rows = []
+        for model in sorted({k[1] for k in data if k[0] == set_name}):
+            da, db = data.get((set_name, model, args.a)), data.get((set_name, model, args.b))
+            if not da or not db:
+                continue
+            ids = sorted(set(da) & set(db))
+            a = np.array([da[i] for i in ids]); b = np.array([db[i] for i in ids])
+            p, n10, n01 = mcnemar_exact(a, b)
+            lo, hi = paired_bootstrap_ci(a, b, args.n_boot)
+            rows.append(dict(model=model, n=len(ids), ra=a.mean() * 100, rb=b.mean() * 100,
+                             delta=(a.mean() - b.mean()) * 100, lo=lo, hi=hi,
+                             h=cohens_h(a.mean(), b.mean()), p=p, n10=n10, n01=n01))
+        if not rows:
+            continue
         for r, padj in zip(rows, holm([r["p"] for r in rows])):
             r["p_holm"] = padj
-        print(f"== {exp} / {metric} ==")
-        print(f"{'model':10s} {'n':>4s} {args.a:>7s} {args.b:>7s} {'Delta':>7s} {'95% CI':>17s} {'h':>6s} {'disc':>9s} {'p':>9s} {'p_holm':>9s}")
+        print(f"== {set_name} ==")
+        print(f"{'model':10s} {'n':>4s} {args.a:>9s} {args.b:>9s} {'Delta':>7s} {'95% CI':>17s} {'h':>6s} {'disc':>9s} {'p':>9s} {'p_holm':>9s}")
         for r in rows:
             sig = "*" if r["p_holm"] < 0.05 else ""
-            print(f"{r['model']:10s} {r['n']:4d} {r['ra']:7.2f} {r['rb']:7.2f} {r['delta']:7.2f} "
+            print(f"{r['model']:10s} {r['n']:4d} {r['ra']:9.2f} {r['rb']:9.2f} {r['delta']:7.2f} "
                   f"[{r['lo']:6.2f}, {r['hi']:6.2f}] {r['h']:6.2f} {r['n10']:4d}/{r['n01']:<4d} "
                   f"{r['p']:9.2e} {r['p_holm']:9.2e}{sig}")
+            table.append(dict(set=set_name, a=args.a, b=args.b, **r))
         print()
+    if args.out and table:
+        with open(args.out, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(table[0])); w.writeheader(); w.writerows(table)
 
 
 if __name__ == "__main__":
