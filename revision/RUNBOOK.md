@@ -91,6 +91,7 @@ Remaining conditions, once those four are queued:
 
 **Before renting:** run the next three steps on an L20, so problems surface for free.
 ```bash
+python pipeline/prepare_mentalchat.py ...   # §1 first: it writes evalsets/mc_heldout100.jsonl (needed for the rapport set)
 python revision/prepare_evalsets.py --qi_dir /path/to/hexphi_csvs --redteam_dir /path/to/redteam_prompts
 CUDA_VISIBLE_DEVICES=0 bash revision/smoke_test.sh        # ~5 min: train -> both inference paths -> score
 pip freeze > revision/requirements-lock.txt && git add revision/requirements-lock.txt && git commit -m "lock env" && git push
@@ -116,20 +117,27 @@ for g in 0 1 2 3; do tmux new -d -s eval$g "python revision/jobqueue.py --gpu $g
 POD=root@<pod-ip> PORT=<ssh-port> bash revision/sync.sh push
 ```
 
-**On the pod, queue evaluation of everything finished.** Base models first, then the auto-queue every 10 minutes:
+**On the pod, queue evaluation.** Each job is one checkpoint with all its suites in a single model load, batch size 48. Different conditions need different suites:
+
+| Preset | Suites | Conditions |
+|---|---|---|
+| `full` | core, over-refusal, MT-Bench, coupling, rapport, held-out | base, warm, ours, user_only, placebo |
+| `baseline` | core, over-refusal, MT-Bench, held-out | warm_clause, warm_mix, sdft, ours_mix, sysprompt |
+| `control` | core, held-out | high_a, ours_noclause, low_e, ours_v3, ours_framework |
+| `seed` | core | extra seeds of warm and ours |
+
 ```bash
-python revision/make_jobs.py eval --conds base --suites core overrefusal mtbench coupling heldout >> eval_jobs.txt
-watch -n 600 'python revision/make_jobs.py eval --auto \
-   --conds warm ours user_only placebo high_a ours_noclause warm_clause warm_mix sdft ours_mix \
-   --suites core overrefusal mtbench >> eval_jobs.txt'
+python revision/make_jobs.py eval --conds base --suites full >> eval_jobs.txt
+python revision/make_jobs.py eval --conds warm --suites baseline \
+    --system @revision/safety_system_prompt.txt --tag sysprompt >> eval_jobs.txt
+watch -n 600 '
+ python revision/make_jobs.py eval --auto --conds warm ours user_only placebo --suites full >> eval_jobs.txt;
+ python revision/make_jobs.py eval --auto --conds warm_clause warm_mix sdft ours_mix --suites baseline >> eval_jobs.txt;
+ python revision/make_jobs.py eval --auto --conds high_a ours_noclause low_e ours_v3 ours_framework --suites control >> eval_jobs.txt;
+ python revision/make_jobs.py eval --auto --conds warm ours --seeds 1 2 --suites seed >> eval_jobs.txt'
 ```
-- **Extra seeds:** add `--seeds 1 2` with `--conds warm ours`.
-- **Coupling and held-out suites:** run these only on the key conditions (base, warm, ours, user_only, placebo).
-- **Inference-time safety-prompt baseline:**
-  ```bash
-  python revision/make_jobs.py eval --conds warm --suites overrefusal coupling mtbench \
-      --system @revision/safety_system_prompt.txt --tag sysprompt >> eval_jobs.txt
-  ```
+
+**Every reported number must come from this harness:** batch 48, these token limits, the pod's GPU type. That includes the paper's old Qi and red-teaming numbers, which get regenerated here. Small differences from the submitted tables are expected; say so in the revision notes ("all models re-evaluated under one harness").
 
 **Scoring and stats** (anywhere; CPU only):
 ```bash

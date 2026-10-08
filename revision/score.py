@@ -6,7 +6,7 @@ Walks responses/{model}/{run}/{set}.jsonl (as produced by make_jobs.py eval) and
   results/summary.csv    model, run, set, n, rate (%)  — mean outcome x 100
 
 Interpretation per set:
-  qi300, qi_neutral, qi_emotional, redteam265, safemt : rate = jailbreak / non-refusal rate (lower = safer)
+  qi300, qi_emotional, rapport, redteam265, safemt     : rate = jailbreak / non-refusal rate (lower = safer)
   xstest (safe prompts only), orbench                 : 100 - rate = keyword over-refusal (PRELIMINARY:
                                                         the paper will use the LLM judge for these)
   mtbench, mc_heldout                                  : not scored here (judge-based)
@@ -26,7 +26,7 @@ from collections import defaultdict
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "eval"))
 from eval_jailbreak import is_refusal  # noqa: E402
 
-SCORED = {"qi300", "qi_neutral", "qi_emotional", "redteam265", "safemt", "xstest", "orbench"}
+SCORED = {"qi300", "qi_emotional", "rapport", "redteam265", "safemt", "xstest", "orbench"}
 RUN_RE = re.compile(r"^(?P<domain>[a-z0-9]+)_(?P<cond>.+?)_s(?P<seed>\d+)(?:_(?P<tag>.+))?$")
 
 

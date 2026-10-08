@@ -38,9 +38,10 @@ python eval/inference.py --model "$CK" --prompts smoke/evalsets/qi_tiny --condit
     --max-new-tokens 64 --output smoke/responses/smollm/smoke_x_s3407/qi300.jsonl
 
 echo "== eval/inference_chat.py (multi-turn + system prompt)"
-python eval/inference_chat.py --model "$CK" --prompts smoke/evalsets/chat.jsonl --condition x --chat_template auto \
-    --max-new-tokens 64 --system @revision/safety_system_prompt.txt \
-    --output smoke/responses/smollm/smoke_x_s3407/mtbench.jsonl
+python eval/inference_chat.py --model "$CK" --condition x --chat_template auto --batch-size 48 \
+    --system @revision/safety_system_prompt.txt \
+    --task smoke/evalsets/chat.jsonl=smoke/responses/smollm/smoke_x_s3407/mtbench.jsonl:64 \
+    --task smoke/evalsets/chat.jsonl=smoke/responses/smollm/smoke_x_s3407/rapport.jsonl:32
 python - <<'EOF'
 import json
 r = [json.loads(l) for l in open("smoke/responses/smollm/smoke_x_s3407/mtbench.jsonl")]

@@ -11,13 +11,15 @@ Evaluation (one line per run x suite; every line is skip-if-done, so re-queuing 
   python revision/make_jobs.py eval --conds warm --suites core --system @revision/safety_system_prompt.txt \
         --tag sysprompt >> eval_jobs.txt                     # inference-time baseline
 
-Suites
-  core        Qi 300 (256 tok) + red-team 265 (512 tok)  — eval/inference.py, as in the paper
-  overrefusal XSTest 450 + OR-Bench-Hard-1K (512 tok)    — eval/inference_chat.py
+Suites (all via eval/inference_chat.py; one job per checkpoint, one model load)
+  core        Qi 300 (256 tok) + red-team 265 (512 tok)     — paper settings
+  overrefusal XSTest 450 + OR-Bench-Hard 500 (128 tok)
   mtbench     MT-Bench 80 x 2 turns (512 tok)
-  coupling    Qi 300 neutral + emotional frame (256 tok)
-  heldout     100 held-out MentalChat prompts (512 tok)   — warmth / G-Eval
+  coupling    Qi 300 in an emotional frame (256 tok); pair = core qi300
+  rapport     2 benign emotional turns, then the Qi request (256 tok)
+  heldout     100 held-out MentalChat prompts (512 tok)     — warmth / G-Eval
   safemt      evalsets/safemt.jsonl, multi-turn (512 tok)
+Presets: full | baseline | control | seed  (see PRESETS below and RUNBOOK §4)
 
 Run directories: outputs_{model}_{domain}_{cond}_s{seed}/ (train.py, one checkpoint per epoch).
 The FINAL epoch is evaluated (highest checkpoint number), or --checkpoint to override.
@@ -40,14 +42,24 @@ MODELS = {  # key: (HF id as in the paper, chat template)
 }
 ORDER = ["llama", "smollm", "qwen", "mistral"]  # fast + most affected first
 
+# Every suite runs through eval/inference_chat.py; one job = one checkpoint, ALL its suites,
+# ONE model load. Token limits: Qi/red-team as in the paper (256/512); over-refusal 128
+# (refusal is decided in the opening sentences); MT-Bench 512; coupling/rapport 256 (as Qi).
 SUITES = {
-    # name: list of (script, prompt path, max_new_tokens, output name)
-    "core":        [("inference", "qi300", 256, "qi300"), ("inference", "redteam265", 512, "redteam265")],
-    "overrefusal": [("chat", "xstest.jsonl", 512, "xstest"), ("chat", "orbench_hard1k.jsonl", 512, "orbench")],
-    "mtbench":     [("chat", "mtbench.jsonl", 512, "mtbench")],
-    "coupling":    [("chat", "qi300_neutral.jsonl", 256, "qi_neutral"), ("chat", "qi300_emotional.jsonl", 256, "qi_emotional")],
-    "heldout":     [("chat", "mc_heldout100.jsonl", 512, "mc_heldout")],
-    "safemt":      [("chat", "safemt.jsonl", 512, "safemt")],
+    # name: list of (prompt file, max_new_tokens, output name)
+    "core":        [("qi300.jsonl", 256, "qi300"), ("redteam265.jsonl", 512, "redteam265")],
+    "overrefusal": [("xstest.jsonl", 128, "xstest"), ("orbench_hard500.jsonl", 128, "orbench")],
+    "mtbench":     [("mtbench.jsonl", 512, "mtbench")],
+    "coupling":    [("qi300_emotional.jsonl", 256, "qi_emotional")],   # pair: qi300 from core
+    "rapport":     [("rapport300.jsonl", 256, "rapport")],
+    "heldout":     [("mc_heldout100.jsonl", 512, "mc_heldout")],
+    "safemt":      [("safemt.jsonl", 512, "safemt")],
+}
+PRESETS = {  # which suites each kind of condition needs (see RUNBOOK §4)
+    "full":     ["core", "overrefusal", "mtbench", "coupling", "rapport", "heldout"],  # base, warm, ours, user_only, placebo
+    "baseline": ["core", "overrefusal", "mtbench", "heldout"],                         # warm_clause, warm_mix, sdft, ours_mix, sysprompt
+    "control":  ["core", "heldout"],                                                   # high_a, ours_noclause, low_e, ours_v3, ours_framework
+    "seed":     ["core"],                                                              # extra seeds
 }
 
 
@@ -58,10 +70,12 @@ def main():
     ap.add_argument("--conds", nargs="+", required=True)
     ap.add_argument("--models", nargs="+", default=ORDER)
     ap.add_argument("--seeds", nargs="+", type=int, default=[3407])
-    ap.add_argument("--suites", nargs="+", default=["core"], choices=sorted(SUITES))
+    ap.add_argument("--suites", nargs="+", default=["core"], choices=sorted(SUITES) + sorted(PRESETS),
+                    help="suite names and/or presets: full, baseline, control, seed")
     ap.add_argument("--checkpoint", default=None, help="checkpoint subdir; default = final epoch")
     ap.add_argument("--evalsets", default="evalsets")
-    ap.add_argument("--batch_size", type=int, default=16, help="keep 16 (the paper's value)")
+    ap.add_argument("--batch_size", type=int, default=48,
+                    help="48 fits 7-8B 4-bit on a 24 GB card; use the SAME value for every reported number")
     ap.add_argument("--system", default=None, help="system prompt text or @file (chat suites only)")
     ap.add_argument("--tag", default="", help="suffix for the output folder, e.g. sysprompt")
     ap.add_argument("--run_dir_override", nargs="*", default=[], help="model:path pairs")
@@ -98,25 +112,21 @@ def main():
                 if args.tag:
                     out += f"_{args.tag}"
                 label = c + (f"_{args.tag}" if args.tag else "")
-                for suite in args.suites:
-                    for script, prompts, ntok, name in SUITES[suite]:
-                        o = f"{out}/{name}.jsonl"
-                        common = (f"--model {model_arg} --prompts {args.evalsets}/{prompts} --condition {label} "
-                                  f"--chat_template {tmpl} --max-new-tokens {ntok} --batch-size {args.batch_size} "
-                                  f"--output {o}")
-                        if script == "inference":
-                            if args.system:
-                                raise SystemExit("--system is only supported for chat suites; "
-                                                 "use the coupling suite's qi_neutral for Qi with a system prompt")
-                            cmd = f"python eval/inference.py {common}"
-                        else:
-                            cmd = f"python eval/inference_chat.py {common}"
-                            if args.system:
-                                cmd += f" --system {args.system}"
-                        line = f"mkdir -p {out} && [ -s {o} ] || {cmd}"
-                        if line not in existing:
-                            print(line)
-
+                suites = []
+                for x in args.suites:
+                    for su in PRESETS.get(x, [x]):
+                        if su not in suites:
+                            suites.append(su)
+                tasks = [f"--task {args.evalsets}/{pf}={out}/{name}.jsonl:{ntok}"
+                         for su in suites for pf, ntok, name in SUITES[su]]
+                done_check = " && ".join(f"[ -s {out}/{name}.jsonl ]" for su in suites for _, _, name in SUITES[su])
+                cmd = (f"python eval/inference_chat.py --model {model_arg} --condition {label} "
+                       f"--chat_template {tmpl} --batch-size {args.batch_size} " + " ".join(tasks))
+                if args.system:
+                    cmd += f" --system {args.system}"
+                line = f"( {done_check} ) || {cmd}"
+                if line not in existing:
+                    print(line)
 
 if __name__ == "__main__":
     main()
