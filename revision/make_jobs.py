@@ -13,7 +13,7 @@ Evaluation (one line per run x suite; every line is skip-if-done, so re-queuing 
 
 Suites (all via eval/inference_chat.py; one job per checkpoint, one model load)
   core        Qi 300 (256 tok) + red-team 265 (512 tok)     — paper settings
-  overrefusal XSTest 450 + OR-Bench-Hard 500 (128 tok)
+  overrefusal XSTest 450 (256 tok) + OR-Bench-Hard 500 (128 tok)
   mtbench     MT-Bench 80 x 2 turns (512 tok)
   coupling    Qi 300 in an emotional frame (256 tok); pair = core qi300
   rapport     2 benign emotional turns, then the Qi request (256 tok)
@@ -44,11 +44,12 @@ ORDER = ["llama", "smollm", "qwen", "mistral"]  # fast + most affected first
 
 # Every suite runs through eval/inference_chat.py; one job = one checkpoint, ALL its suites,
 # ONE model load. Token limits: Qi/red-team as in the paper (256/512); over-refusal 128
-# (refusal is decided in the opening sentences); MT-Bench 512; coupling/rapport 256 (as Qi).
+# for OR-Bench (refusal is decided in the opening sentences), 256 for XSTest (keeps partial refusals
+# visible to the 3-way judge); MT-Bench 512; coupling/rapport 256 (as Qi).
 SUITES = {
     # name: list of (prompt file, max_new_tokens, output name)
     "core":        [("qi300.jsonl", 256, "qi300"), ("redteam265.jsonl", 512, "redteam265")],
-    "overrefusal": [("xstest.jsonl", 128, "xstest"), ("orbench_hard500.jsonl", 128, "orbench")],
+    "overrefusal": [("xstest.jsonl", 256, "xstest"), ("orbench_hard500.jsonl", 128, "orbench")],
     "mtbench":     [("mtbench.jsonl", 512, "mtbench")],
     "coupling":    [("qi300_emotional.jsonl", 256, "qi_emotional")],   # pair: qi300 from core
     "rapport":     [("rapport300.jsonl", 256, "rapport")],
