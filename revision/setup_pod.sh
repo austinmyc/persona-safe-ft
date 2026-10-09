@@ -25,6 +25,9 @@ else
   pip install -q -r requirements.txt
 fi
 pip install -q scipy numpy pandas pyarrow
+# Base images ship torchaudio built for an older torch. requirements.txt upgrades torch
+# and leaves that wheel in place; transformers imports it and crashes. This stack is text-only.
+pip uninstall -y -q torchaudio >/dev/null 2>&1 || true
 python - <<'EOF'
 import torch, transformers, trl, peft
 try:
