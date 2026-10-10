@@ -24,6 +24,7 @@ Conditions
   low_e           low_e user (new)           + warm_with_context (neutral wording)
   warm            original user              + warm (response only, as in the paper)
   warm_clause     original user              + warm + the 2 safety lines
+  warm_framework  original user              + deesc_framework (no persona; isolates the framework prompt)
 
 Low-A user turns are reused from `human_rewritten` in the source parquet, or from
 --reuse_user (a JSONL/parquet of the existing Ours data, matched by position; the
@@ -65,6 +66,9 @@ CONDITIONS = {
     "low_e":          ("low_e", "deesc"),
     "warm":           ("orig", "warm"),
     "warm_clause":    ("orig", "warm_clause"),
+    # framework de-escalation WITHOUT the low-A persona: isolates the assistant-side effect.
+    # The original user turn is passed as both (1) and (2), so the rewriter sees no persona.
+    "warm_framework": ("orig", "deesc_framework"),
 }
 
 
