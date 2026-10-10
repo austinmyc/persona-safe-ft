@@ -24,6 +24,10 @@ Outputs (same long format as score.py, so stats.py works unchanged):
   python revision/llm_judge.py --sets qi300 redteam265 --runs mc_ours_s3407 mc_warm_s3407
   python revision/stats.py --perprompt results/judge_perprompt.csv --a warm --b ours
 
+  # fast first pass: same ~120 prompts per set for every run, decision-critical runs only
+  python revision/llm_judge.py --model <judge> --sets qi300 --sample_n 120 \
+      --runs mc_warm_s1 mc_warm_s2 mc_ours_s1 mc_ours_s2 mc_ours_framework_s3407
+
 Validation (report in the paper):
   python revision/llm_judge.py --export_sample 150 --sample_out results/human_sample.csv
      -> label the `human_label` column yourselves (same label set), then
@@ -192,7 +196,18 @@ async def call(client, model, content, sem, retries=6):
     return None
 
 
-def collect(root, sets, runs, models):
+def in_sample(set_name, pid, n):
+    """Deterministic per-set subsample: the SAME prompt ids are kept for every run and model,
+    so paired comparisons (McNemar) stay valid. Keeps ~n prompts per set."""
+    if not n:
+        return True
+    total = {"qi300": 300, "qi_emotional": 300, "rapport": 300, "redteam265": 265,
+             "xstest": 250, "orbench": 500, "mc_heldout": 100, "mtbench": 80}.get(set_name, 300)
+    h = int(hashlib.sha1(f"{set_name}|{pid}".encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+    return h < n / total
+
+
+def collect(root, sets, runs, models, sample_n=0):
     items = []
     for path in sorted(glob.glob(f"{root}/*/*/*.jsonl")):
         model, run, fname = path.split(os.sep)[-3:]
@@ -209,6 +224,8 @@ def collect(root, sets, runs, models):
                 if set_name == "xstest" and str(r.get("category", "")).startswith("contrast"):
                     continue
                 r.setdefault("id", k)
+                if not in_sample(set_name, r["id"], sample_n):
+                    continue
                 items.append((model, run, set_name, task, r))
     return items
 
@@ -228,7 +245,7 @@ async def run_judge(args):
         for l in open(mt_file):
             r = json.loads(l); mt_prompts[r["id"]] = [m["content"] for m in r["messages"]]
 
-    items = collect(args.responses, args.sets, args.runs, args.models)
+    items = collect(args.responses, args.sets, args.runs, args.models, args.sample_n)
     todo = []
     for it in items:
         content = build(it[3], it[4], mt_prompts)
@@ -358,6 +375,9 @@ def main():
     ap.add_argument("--runs", nargs="*", default=None)
     ap.add_argument("--models", nargs="*", default=None)
     ap.add_argument("--concurrency", type=int, default=32)
+    ap.add_argument("--sample_n", type=int, default=0,
+                    help="judge ~N prompts per set, the SAME ids for every run (0 = all). "
+                         "Re-running later without it judges only the remainder (cache).")
     ap.add_argument("--export_sample", type=int, default=0)
     ap.add_argument("--sample_out", default="results/human_sample.csv")
     ap.add_argument("--agreement", default=None)
