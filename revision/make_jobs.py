@@ -102,6 +102,9 @@ def main():
                 if args.auto and c != "base":
                     rd_check = override.get(m, run)
                     if not os.path.exists(os.path.join(rd_check, "DONE")):
+                        # Say so on stderr: silently skipping is how Base/Warm/Ours went missing before.
+                        why = "missing" if not os.path.exists(rd_check) else "no DONE marker"
+                        print(f"# skipped {rd_check}: {why}", file=sys.stderr)
                         continue
                 if c == "base":
                     model_arg, out = hf, f"responses/{m}/base"
