@@ -22,6 +22,7 @@ STYLE = {  # label: (marker, face, edge, size)
     "Generic Warmth FT (Ibrahim et al., 2026)": ("s", "#d4a0b0", "#d4a0b0", 34),
     "User-only": ("^", "#e8a33d", "#e8a33d", 38),
     "Ours": ("D", "#4a6aa5", "#4a6aa5", 34),
+    "Ours (simple prompt)": ("D", "white", "#4a6aa5", 34),
 }
 EXP = {
     3: {"Base": ["base"], "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
@@ -38,12 +39,20 @@ def main():
     ap.add_argument("--summary", required=True)
     ap.add_argument("--exp", type=int, choices=[2, 3], required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--framework_as_ours", action="store_true",
+                    help="Exp. 3: plot low-A + framework (mc_ours_framework_s1/s2) as 'Ours' and the "
+                         "submitted prompt as 'Ours (simple prompt)'")
     ap.add_argument("--skip", nargs="*", default=["llama:Base"],
                     help="model:label cells to omit (Llama-3.1-8B base is not a chat model)")
     a = ap.parse_args()
     d = pd.read_csv(a.summary)
     d = d[d.metric == "harmful%"]
     skip = {tuple(x.split(":", 1)) for x in a.skip}
+    if a.framework_as_ours and a.exp == 3:
+        EXP[3] = {"Base": ["base"],
+                  "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
+                  "Ours (simple prompt)": ["mc_ours_s1", "mc_ours_s2"],
+                  "Ours": ["mc_ours_framework_s1", "mc_ours_framework_s2"]}
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.1))
     for ax, (s, title) in zip(axes, PANELS):
         for yi, (m, mname) in enumerate(MODELS):
