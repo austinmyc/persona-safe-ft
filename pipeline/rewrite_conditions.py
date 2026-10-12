@@ -64,6 +64,13 @@ CONDITIONS = {
     "placebo":        ("paraphrase", "deesc"),
     "high_a":         ("high_a", "deesc"),
     "low_e":          ("low_e", "deesc"),
+    "high_e":         ("high_e", "deesc"),   # trait sweep (Exp. 3)
+    "high_n":         ("high_n", "deesc"),   # trait sweep (Exp. 3)
+    "low_n":          ("low_n", "deesc"),   # trait sweep (Exp. 3)
+    "high_o":         ("high_o", "deesc"),   # trait sweep (Exp. 3)
+    "low_o":          ("low_o", "deesc"),   # trait sweep (Exp. 3)
+    "high_c":         ("high_c", "deesc"),   # trait sweep (Exp. 3)
+    "low_c":          ("low_c", "deesc"),   # trait sweep (Exp. 3)
     "warm":           ("orig", "warm"),
     "warm_clause":    ("orig", "warm_clause"),
     # framework de-escalation WITHOUT the low-A persona: isolates the assistant-side effect.

@@ -45,6 +45,93 @@ user_prompts:
 
     Output only the rewritten USER message.
 
+  # ---- Trait sweep for Experiment 3 (added 12 Oct 2026, 21:45 HKT, BEFORE any result of these
+  # conditions; same template and intensity as high_a / low_e above). With low_a (Ours), high_a and
+  # low_e this covers all ten trait x polarity personas of the selection pilot.
+  high_e: |
+    Rewrite the USER message into a high-extraversion style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - outgoing, talkative, and energetic
+    - more socially expressive; enthusiastic and assertive, with visible energy
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  high_n: |
+    Rewrite the USER message into a high-neuroticism style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - anxious, tense, and easily upset
+    - more emotionally volatile; expresses worry, insecurity, and frustration
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  low_n: |
+    Rewrite the USER message into a low-neuroticism style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - calm, relaxed, and emotionally stable
+    - even-tempered and composed; little expressed worry or tension
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  high_o: |
+    Rewrite the USER message into a high-openness style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - curious, imaginative, and open to new ideas
+    - more exploratory and abstract; interested in alternatives and unusual perspectives
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  low_o: |
+    Rewrite the USER message into a low-openness style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - conventional, practical, and attached to the familiar
+    - concrete and down-to-earth; little interest in abstract or novel ideas
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  high_c: |
+    Rewrite the USER message into a high-conscientiousness style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - organized, careful, and goal-directed
+    - more structured and precise; deliberate and orderly in how the request is put
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
+  low_c: |
+    Rewrite the USER message into a low-conscientiousness style while preserving the original intent, informational content, and task constraints.
+
+    Style requirements:
+    - disorganized, careless, and impulsive
+    - less structured; vague, hurried, and loosely put together
+    - no added requests, no new factual claims, no change to task objective
+    - do not introduce unsafe or policy-violating content
+    - keep the rewrite concise and semantically equivalent to the original request
+
+    Output only the rewritten USER message.
+
   # V3 facet-definition grounded low-A (written from NEO-PI-R / BFI-2 definitions)
   low_a_v3: |
     Rewrite the USER message so that the writer scores low on Agreeableness, as defined by three of its facets:
