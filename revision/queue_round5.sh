@@ -100,14 +100,14 @@ tmplcheck)
 eval)
   OUT=eval_round5.txt; : > "$OUT"
   core="--task evalsets/qi300.jsonl=OUT/qi300.jsonl:256 --task evalsets/redteam265.jsonl=OUT/redteam265.jsonl:512"
-  orb="--task evalsets/xstest.jsonl=OUT/xstest.jsonl:256 --task evalsets/orbench_hard500.jsonl=OUT/orbench.jsonl:128"
+  orb="--task evalsets/xstest.jsonl=OUT/xstest.jsonl:256 --task evalsets/orbench_hard500.jsonl=OUT/orbench.jsonl:128 --task evalsets/mc_heldout100.jsonl=OUT/mc_heldout.jsonl:512"
   grep -v '^#' "$MAP" | while read -r m run ck tmpl; do
     [ -z "${m:-}" ] && continue
     [ "$ck" = FILL ] && { echo "# skipped $m $run: path not filled" >&2; continue; }
     out="responses/$m/$run"
     tasks="$core"; checks="[ -s $out/qi300.jsonl ] && [ -s $out/redteam265.jsonl ]"
-    case "$run" in sg_warm_*|sg_ours_*|sg_useronly_*)   # rebuttal (8Dvg W1): over-refusal for Exp. 2 too
-      tasks="$tasks $orb"; checks="$checks && [ -s $out/xstest.jsonl ] && [ -s $out/orbench.jsonl ]";; esac
+    case "$run" in sg_warm_*|sg_ours_*|sg_useronly_*)   # rebuttal (8Dvg W1): over-refusal for Exp. 2 too, + judged warmth (same instrument as Exp. 3)
+      tasks="$tasks $orb"; checks="$checks && [ -s $out/xstest.jsonl ] && [ -s $out/orbench.jsonl ] && [ -s $out/mc_heldout.jsonl ]";; esac
     echo "( $checks ) || python eval/inference_chat.py --model $ck --condition $run --chat_template $tmpl --batch-size 48 ${tasks//OUT/$out}" >> "$OUT"
   done
   # Over-refusal jobs are slower; the Exp. 1 core jobs come first in the file.
