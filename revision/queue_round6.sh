@@ -9,6 +9,7 @@
 #       bash revision/queue_round6.sh gemma_data       # normalise + size-match -> data/gemma_pilot/
 #       bash revision/queue_round6.sh gemma_train      # writes train_gemma.txt (jobqueue)
 #       bash revision/queue_round6.sh gemma_eval       # writes eval_gemma.txt  (jobqueue; base + each subset)
+#       bash revision/queue_round6.sh gemma_layers     # pilot step 1: layer sensitivity (x1.3 per layer, JBB)
 #       bash revision/queue_round6.sh gemma_judge      # MiniMax judge -> results_gemma/
 #       bash revision/queue_round6.sh gemma_report     # ranking + McNemar(low_A vs each), Holm
 #
@@ -93,6 +94,14 @@ gemma_eval)
   done
   echo "== $OUT: $(grep -c . $OUT) jobs.  tmux new -d -s gev 'python revision/jobqueue.py --gpu 0 --jobs $OUT'"
   echo "   then: python revision/degen_check.py --min 3   (gemma rows should be < 3%)"
+  ;;
+
+gemma_layers)
+  # Pilot step 1 (§3.1 "Layer sensitivity"): residual stream of each layer x1.3, judged harm on JBB.
+  # Base model only; 26 layers x 100 prompts (~30-40 min on one GPU). Run after gemma_download.
+  [ -s evalsets/jbb100.jsonl ] || python revision/gemma/prepare_jbb.py
+  echo "python revision/gemma/layer_sensitivity.py --model $GEMMA_DIR --template auto --layers all --factor 1.3" >> eval_gemma.txt
+  echo "queued in eval_gemma.txt (run with jobqueue, or directly)"
   ;;
 
 gemma_judge)

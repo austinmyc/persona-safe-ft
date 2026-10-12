@@ -53,6 +53,7 @@ SETS = {  # name: (file in evalsets/, filter)
     "xstest_safe": ("xstest.jsonl", "safe"),
     "mtbench": ("mtbench.jsonl", None),
     "mc_heldout": ("mc_heldout100.jsonl", None),
+    "jbb100": ("jbb100.jsonl", None),   # pilot selection set (revision/gemma/prepare_jbb.py)
 }
 HARMLESS = ["xstest_safe", "mtbench"]
 ALPACA_SYS = ("Below are some instructions that describe some tasks. "

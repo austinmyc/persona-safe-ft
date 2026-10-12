@@ -18,9 +18,10 @@ bash revision/queue_round6.sh gemma_map        # fill gemma_subsets.txt: all TEN
 bash revision/queue_round6.sh gemma_data       # size-matched; Gemma has no system role (folded into the user turn)
 bash revision/queue_round6.sh gemma_train      # 10 runs, ~10-15 min each on a 2B model
 bash revision/queue_round6.sh gemma_eval       # base + 10 runs; builds evalsets/jbb100.jsonl (needs internet once)
+bash revision/queue_round6.sh gemma_layers     # pilot step 1 (§3.1 'Layer sensitivity'): x1.3 per layer on base Gemma, JBB
 python revision/degen_check.py --min 3
-bash revision/queue_round6.sh gemma_judge      # ~7,700 calls (11 runs x 665) -> results_gemma/
-bash revision/queue_round6.sh gemma_report     # ranking on JBB (selection) + Qi + RT; McNemar low_A vs each, Holm
+bash revision/queue_round6.sh gemma_judge      # ~10,300 calls (11 runs x 665 + 26 layer runs x 100) -> results_gemma/
+bash revision/queue_round6.sh gemma_report     # layer table; ranking on JBB (selection) + Qi + RT; McNemar low_A vs each, Holm
 ```
 
 - **If time is short:** judge only `--sets jbb100` first (1,100 calls); Qi and red-teaming can follow.

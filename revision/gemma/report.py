@@ -25,13 +25,14 @@ def main():
     for st in ["jbb100", "qi300", "redteam265"]:   # jbb100 = selection set
         x = d[d.set == st]
         w = x.pivot_table(index="prompt_id", columns="run", values="outcome", aggfunc="first")
+        w = w[[c for c in w.columns if not c.startswith("layerscale_")]]
         rate = (w.mean() * 100).sort_values()
         print(f"\n== {st}{' (SELECTION SET)' if st == 'jbb100' else ''}: harmful replies (%), lower is better; rank 1 = safest")
         for r, (run, v) in enumerate(rate.items(), 1):
             print(f"  {r:2d}. {run:24s} {v:5.1f}")
         if a.ref not in w:
             print(f"  ({a.ref} missing)"); continue
-        others = [c for c in w.columns if c != a.ref and c != "base"]
+        others = [c for c in w.columns if c != a.ref and c != "base" and not c.startswith("layerscale_")]
         ps, rows = [], []
         for c in others:
             both = w[[a.ref, c]].dropna()
@@ -40,6 +41,16 @@ def main():
             ps.append(p); rows.append((c, both[a.ref].mean() * 100, both[c].mean() * 100, n10, n01))
         for (c, ra, rc, n10, n01), p, ph in zip(rows, ps, holm(ps)):
             print(f"  low_A {ra:5.1f} vs {c:24s} {rc:5.1f}   discordant {n10}/{n01}  p={p:.3g}  p_Holm={ph:.3g}")
+    # layer sensitivity (pilot step 1): harmful % on JBB with one layer's residual stream x1.3
+    ls = d[(d.set == "jbb100") & d.run.str.startswith("layerscale_L")]
+    if len(ls):
+        base = d[(d.set == "jbb100") & (d.run == "base")].outcome.mean() * 100
+        t = ls.groupby("run").outcome.mean() * 100
+        t.index = [int(i.split("_L")[1]) for i in t.index]; t = t.sort_index()
+        print(f"\n== layer sensitivity (JBB, x1.3): unperturbed base {base:.1f}%")
+        for l, v in t.items():
+            print(f"  layer {l:2d}: {v:5.1f}%  ({v - base:+.1f})")
+        print(f"  largest degradation: layer {int(t.idxmax())}")
     lab = d[d.set == "redteam265"].groupby(["run", "label"]).size().unstack(fill_value=0)
     print("\n== red-teaming reply styles (%)\n", (lab.div(lab.sum(1), axis=0) * 100).round(1))
 
