@@ -27,7 +27,8 @@ STYLE = {  # label: (marker, face, edge, size)
 EXP = {
     3: {"Base": ["base"], "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
         "Ours": ["mc_ours_s1", "mc_ours_s2"]},
-    2: {"Base": ["sg_base_s3407"],  # Exp. 2 base from its own (old) harness; Llama has none "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
+    # Exp. 2 base comes from its own (old) harness; Llama has no usable base there
+    2: {"Base": ["sg_base_s3407"], "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
         "User-only": ["sg_useronly_s3407"], "Ours": ["sg_ours_s3407"]},
 }
 PANELS = [("qi300", "(a) Harmful-instruction benchmark\n(Qi et al., 2024)"),
