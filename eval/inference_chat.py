@@ -43,6 +43,9 @@ def parse_task(t):
     return prompts, out, int(ntok)
 
 
+STOP_MARKERS = []
+
+
 def generate_set(model, tokenizer, device, rows, system, max_new, bs):
     user_turns = [[m["content"] for m in r["messages"] if m["role"] == "user"] for r in rows]
     histories = [([{"role": "system", "content": system}] if system else []) for _ in rows]
@@ -65,6 +68,9 @@ def generate_set(model, tokenizer, device, rows, system, max_new, bs):
                                      pad_token_id=tokenizer.pad_token_id)
             for i, ids, out_ids in zip(idx, enc["input_ids"], gen):
                 resp = tokenizer.decode(out_ids[len(ids):], skip_special_tokens=True).strip()
+                if STOP_MARKERS:  # base models without a chat format do not emit EOS: cut at the next turn
+                    cut = [resp.find(m) for m in STOP_MARKERS if resp.find(m) > 0]
+                    resp = resp[:min(cut)].strip() if cut else resp
                 histories[i].append({"role": "assistant", "content": resp})
                 outputs[i].append(resp)
     return user_turns, outputs
@@ -74,7 +80,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
     ap.add_argument("--condition", required=True)
-    ap.add_argument("--chat_template", default="chatml", choices=["chatml", "mistral", "auto"])
+    ap.add_argument("--chat_template", default="chatml", choices=["chatml", "mistral", "auto", "alpaca"],
+                    help="alpaca: plain instruction/response format for BASE models without chat tuning "
+                         "(Llama-3.1-8B base); generations are cut at the next '### ' turn marker")
     ap.add_argument("--batch-size", type=int, default=48)
     ap.add_argument("--system", default=None, help="System prompt text, or @path/to/file")
     ap.add_argument("--task", action="append", default=[], help="PROMPTS=OUTPUT:MAX_NEW_TOKENS")
@@ -96,6 +104,9 @@ def main():
     t0 = time.time()
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=args.model, max_seq_length=1024, dtype=None, load_in_4bit=True)
+    global STOP_MARKERS
+    if args.chat_template == "alpaca":
+        STOP_MARKERS = ["\n### Instruction", "\n### Input", "\n### Response", "\n\n\n"]
     if args.chat_template != "auto":
         tokenizer = get_chat_template(tokenizer, chat_template=args.chat_template)
     FastLanguageModel.for_inference(model)

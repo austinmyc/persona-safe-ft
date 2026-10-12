@@ -60,3 +60,16 @@ Set the variable per command, e.g. `OPENAI_API_KEY=$OPENAI_KEY bash revision/que
 - [ ] Qualitative examples, licences, checklist answers
 - [ ] Fill §5.2 red-teaming, §5.4 framework ablation, §5.5 costs, §5.6 ShareGPT, Table 4 seed-3407 rows
 - [ ] If the framework becomes the method: rename conditions, move the §5.4 result into §5.2, and update Fig. 1, abstract and intro
+
+## Added 12 Oct, 14:30: Llama-3.1-8B base, re-run with a plain instruction format (S)
+
+The earlier Llama base run used ChatML. That model is pretrained only and has never seen ChatML, so 62–92% of its replies were loops, and it is currently missing from every Base comparison. Re-run it with an Alpaca-style instruction/response format; generations are cut at the next `### ` marker. Use the pod or a machine that passed diag. About 10 min of generation plus about 2,100 judge calls.
+
+```bash
+python revision/make_jobs.py eval --conds base --models llama --suites full --template alpaca --tag alpaca >> eval_round4.txt
+# after generation:
+python revision/degen_check.py --min 3        # responses/llama/base_alpaca should now be < 5%
+python revision/llm_judge.py --model $JUDGE_MODEL --base_url $JUDGE_URL     # run name: base_alpaca
+```
+
+If it is still mostly degenerate, report Llama base as "not evaluable as a chat model" (as now). Otherwise it becomes the Llama Base cell in Tables 2–5 and Fig. 3, with a footnote on the format.

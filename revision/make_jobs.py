@@ -78,6 +78,8 @@ def main():
     ap.add_argument("--batch_size", type=int, default=48,
                     help="48 fits 7-8B 4-bit on a 24 GB card; use the SAME value for every reported number")
     ap.add_argument("--system", default=None, help="system prompt text or @file (chat suites only)")
+    ap.add_argument("--template", default=None, choices=["chatml", "mistral", "auto", "alpaca"],
+                    help="override the model's chat template (e.g. alpaca for the Llama-3.1-8B BASE model)")
     ap.add_argument("--tag", default="", help="suffix for the output folder, e.g. sysprompt")
     ap.add_argument("--run_dir_override", nargs="*", default=[], help="model:path pairs")
     ap.add_argument("--auto", action="store_true",
@@ -91,6 +93,7 @@ def main():
 
     for m in args.models:
         hf, tmpl = MODELS[m]
+        tmpl = args.template or tmpl
         for c in args.conds:
             for s in args.seeds:
                 run = f"outputs_{m}_{args.domain}_{c}_s{s}"
