@@ -27,11 +27,22 @@ STYLE = {  # label: (marker, face, edge, size)
 EXP = {
     3: {"Base": ["base"], "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
         "Ours": ["mc_ours_s1", "mc_ours_s2"]},
-    2: {"Base": ["sg_base_s3407"], "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
+    2: {"Base": ["base"],  # one shared base evaluation for all experiments (round 5) "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
         "User-only": ["sg_useronly_s3407"], "Ours": ["sg_ours_s3407"]},
 }
 PANELS = [("qi300", "(a) Harmful-instruction benchmark\n(Qi et al., 2024)"),
           ("redteam265", "(b) Student–teacher red-teaming prompts\n(Revilla Llaca et al., 2023)")]
+
+
+LLAMA_BASE = "base_alpaca"
+
+
+def prep(d):
+    """Llama-3.1-8B is pretrained only: its Base cell is the Alpaca-format run (LLAMA_BASE)."""
+    if LLAMA_BASE and (d.run == LLAMA_BASE).any():
+        d = d[~((d.model == "llama") & (d.run == "base"))].copy()
+        d.loc[(d.model == "llama") & (d.run == LLAMA_BASE), "run"] = "base"
+    return d
 
 
 def draw_panel(ax, d, s, runs_by_label, skip, title):
@@ -70,7 +81,7 @@ def combined(a):
             ax = axes[r][c]
             t = f"{ename}: " + title.split("\n")[0][4:]
             if path and os.path.exists(path):
-                d = pd.read_csv(path); d = d[d.metric == "harmful%"]
+                d = pd.read_csv(path); d = prep(d[d.metric == "harmful%"])
                 draw_panel(ax, d, s, EXP[e], {tuple(x.split(":", 1)) for x in a.skip}, t)
                 labels += [l for l in EXP[e] if l not in labels]
             else:
@@ -100,9 +111,12 @@ def main():
     ap.add_argument("--framework_as_ours", action="store_true",
                     help="Exp. 3: plot low-A + framework (mc_ours_framework_s1/s2) as 'Ours' and the "
                          "submitted prompt as 'Ours (simple prompt)'")
-    ap.add_argument("--skip", nargs="*", default=["llama:Base"],
-                    help="model:label cells to omit (Llama-3.1-8B base is not a chat model)")
+    ap.add_argument("--skip", nargs="*", default=[], help="model:label cells to omit")
+    ap.add_argument("--llama_base", default="base_alpaca",
+                    help="run used as the Llama Base cell (pretrained model, Alpaca format); '' = use 'base'")
     a = ap.parse_args()
+    global LLAMA_BASE
+    LLAMA_BASE = a.llama_base
     if a.framework_as_ours:
         EXP[3] = {"Base": ["base"],
                   "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
@@ -110,7 +124,7 @@ def main():
                   "Ours": ["mc_ours_framework_s1", "mc_ours_framework_s2"]}
     if a.exp == 23:
         return combined(a)
-    d = pd.read_csv(a.summary)
+    d = prep(pd.read_csv(a.summary))
     d = d[d.metric == "harmful%"]
     skip = {tuple(x.split(":", 1)) for x in a.skip}
     if a.framework_as_ours and a.exp == 3:

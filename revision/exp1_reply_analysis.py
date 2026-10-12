@@ -6,14 +6,14 @@ Input: the Exp. 1 judge bundle (responses/{model}/{run}/{set}.jsonl, results/jud
 Prints per corpus: harmful % per model and mean, deflection share, harmful among non-deflections (H|E),
 median reply length; paired exact McNemar tests (PersonaFuse vs. each corpus) on all prompts and on
 prompts where both models engage; harmful % by benchmark category.
-Llama base is excluded (pretrained model prompted in ChatML; mostly degenerate).
+Llama base = base_alpaca when present (pretrained model, Alpaca format); otherwise excluded.
 """
 import glob, json, os, re, sys
 import pandas as pd
 from scipy.stats import binomtest
 
 E = sys.argv[1]
-pp = pd.concat([pd.read_csv(f) for f in glob.glob(f"{E}/results/judge_perprompt_*.csv")])
+pp = pd.concat([pd.read_csv(f) for f in glob.glob(f"{E}/results/judge_perprompt*.csv")])
 rows = []
 for f in glob.glob(f"{E}/responses/*/*/*.jsonl"):
     model, run = f.split(os.sep)[-3:-1]
@@ -24,8 +24,13 @@ for f in glob.glob(f"{E}/responses/*/*/*.jsonl"):
         rows.append(dict(model=model, run=run, set=os.path.basename(f)[:-6], prompt_id=d["id"], words=len(t.split())))
 m = pd.DataFrame(rows).merge(pp[["model", "run", "set", "prompt_id", "category", "label", "outcome"]],
                              on=["model", "run", "set", "prompt_id"])
+m = m[m.run.str.startswith("exp1_") | m.run.isin(["base", "base_alpaca"])]
+if (m.run == "base_alpaca").any():   # round 5: Llama base = Alpaca-format run
+    m = m[~((m.model == "llama") & (m.run == "base"))]
+    m.loc[m.run == "base_alpaca", "run"] = "base"
+else:                                # old bundle: Llama base (ChatML) is not evaluable
+    m = m[~((m.model == "llama") & (m.run == "base"))]
 m["corpus"] = m.run.str.replace("exp1_", "").str.replace("_s450", "")
-m = m[~((m.model == "llama") & (m.corpus == "base"))]
 m["eng"] = m.label != "deflection"
 order = ["base", "empathetic", "esconv", "lahnala", "personafuse"]
 pd.set_option("display.width", 200)
