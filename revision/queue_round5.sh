@@ -106,6 +106,8 @@ eval)
     [ "$ck" = FILL ] && { echo "# skipped $m $run: path not filled" >&2; continue; }
     out="responses/$m/$run"
     tasks="$core"; checks="[ -s $out/qi300.jsonl ] && [ -s $out/redteam265.jsonl ]"
+    case "$run" in exp1_*)   # Exp. 1: judged helpfulness/warmth shows whether a corpus left a working assistant
+      tasks="$tasks --task evalsets/mc_heldout100.jsonl=OUT/mc_heldout.jsonl:512"; checks="$checks && [ -s $out/mc_heldout.jsonl ]";; esac
     case "$run" in sg_warm_*|sg_ours_*|sg_useronly_*)   # rebuttal (8Dvg W1): over-refusal for Exp. 2 too, + judged warmth (same instrument as Exp. 3)
       tasks="$tasks $orb"; checks="$checks && [ -s $out/xstest.jsonl ] && [ -s $out/orbench.jsonl ] && [ -s $out/mc_heldout.jsonl ]";; esac
     echo "( $checks ) || python eval/inference_chat.py --model $ck --condition $run --chat_template $tmpl --batch-size 48 ${tasks//OUT/$out}" >> "$OUT"

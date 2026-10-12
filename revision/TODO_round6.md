@@ -2,29 +2,29 @@
 
 Three independent blocks. Priority **after round 5**, which makes the evaluation consistent (`TODO_round5.md`).
 
-## A. Gemma-2-2B replication of the trait-selection pilot (promised to prLP W4 and the AC)
+## A. Trait-selection pilot on Gemma-2-2B (now THE pilot of the paper, §3.1 / App. G)
 
-**What it is.** The pilot fine-tuned Llama-3.1-8B on each PersonaFuse trait × polarity subset (existing data, no rewriting) and picked low agreeableness. Our response said we repeated this on Gemma-2-2B for low-A vs. high-N and high-E, on red-teaming. This reruns it with the paper's current protocol:
-- 4-bit, training as in `train.py`;
-- Qi + red-teaming generation as in round 5;
-- the MiniMax judge instead of keywords.
+**What it is.** All ten PersonaFuse trait × polarity subsets, using the pilot's existing subset files (no rewriting).
+- **Model.** Gemma-2-2B is fine-tuned on each subset. It appears nowhere else in the paper.
+- **Selection set.** Selection uses judged harmful replies on **JailbreakBench JBB-Behaviors** (100 prompts, `evalsets/jbb100.jsonl`), which is not used in any other evaluation.
+- **Comparison only.** Qi and red-teaming are also generated, so the table can sit next to the old Llama pilot.
+- **Why.** With a held-out model and a held-out benchmark, Llama in the main experiments is no longer circular (prLP W4, AC).
 
-**Model.** `unsloth/gemma-2-2b-it-bnb-4bit`, the pre-quantised 4-bit Unsloth mirror (not gated).
-- For the pretrained model, set `GEMMA=unsloth/gemma-2-2b-bnb-4bit`.
-- **Use whichever variant the July run used**, so the paper describes one experiment.
+**Model files.** Default `GEMMA=unsloth/gemma-2-2b-it-bnb-4bit`, pre-quantised 4-bit and not gated. Set `GEMMA=unsloth/gemma-2-2b-bnb-4bit` for the pretrained model. The paper's App. G has a `\TBD` for which one was used.
 
 ```bash
 bash revision/queue_round6.sh gemma_download
-bash revision/queue_round6.sh gemma_map        # fill gemma_subsets.txt with the PILOT's subset files
-bash revision/queue_round6.sh gemma_data       # size-matched across subsets; Gemma has no system role (folded into the user turn)
-bash revision/queue_round6.sh gemma_train      # 3 runs (~10-15 min each on a 2B model)
-bash revision/queue_round6.sh gemma_eval       # base + 3 runs; re-run after training finishes
+bash revision/queue_round6.sh gemma_map        # fill gemma_subsets.txt: all TEN pilot subset files
+bash revision/queue_round6.sh gemma_data       # size-matched; Gemma has no system role (folded into the user turn)
+bash revision/queue_round6.sh gemma_train      # 10 runs, ~10-15 min each on a 2B model
+bash revision/queue_round6.sh gemma_eval       # base + 10 runs; builds evalsets/jbb100.jsonl (needs internet once)
 python revision/degen_check.py --min 3
-bash revision/queue_round6.sh gemma_judge      # ~2,300 calls -> results_gemma/ (separate from results/)
-bash revision/queue_round6.sh gemma_report     # ranking, McNemar low_A vs each (Holm), reply styles
+bash revision/queue_round6.sh gemma_judge      # ~7,700 calls (11 runs x 665) -> results_gemma/
+bash revision/queue_round6.sh gemma_report     # ranking on JBB (selection) + Qi + RT; McNemar low_A vs each, Holm
 ```
 
-**Full ten-subset ranking on Gemma.** Run `GEMMA_SUBSETS="low_A high_A low_C high_C low_E high_E low_N high_N low_O high_O"` for every `gemma_*` step. That is ten runs, about 1.5–2 h of training plus about 6,000 judge calls.
+- **If time is short:** judge only `--sets jbb100` first (1,100 calls); Qi and red-teaming can follow.
+- **If low A does NOT rank first on JBB:** stop and tell the authors. §3.1 must then be rewritten; do not swap benchmarks after seeing results.
 
 **Send back:** `results_gemma/report.txt` and `results_gemma/judge_perprompt.csv`.
 

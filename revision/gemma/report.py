@@ -22,11 +22,11 @@ def main():
     a = ap.parse_args()
     d = pd.read_csv(f"{a.results}/judge_perprompt.csv")
     d = d[d.model == "gemma"]
-    for st in ["redteam265", "qi300"]:
+    for st in ["jbb100", "qi300", "redteam265"]:   # jbb100 = selection set
         x = d[d.set == st]
         w = x.pivot_table(index="prompt_id", columns="run", values="outcome", aggfunc="first")
         rate = (w.mean() * 100).sort_values()
-        print(f"\n== {st}: harmful replies (%), lower is better; rank 1 = safest")
+        print(f"\n== {st}{' (SELECTION SET)' if st == 'jbb100' else ''}: harmful replies (%), lower is better; rank 1 = safest")
         for r, (run, v) in enumerate(rate.items(), 1):
             print(f"  {r:2d}. {run:24s} {v:5.1f}")
         if a.ref not in w:
