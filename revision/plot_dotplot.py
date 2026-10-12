@@ -27,7 +27,7 @@ STYLE = {  # label: (marker, face, edge, size)
 EXP = {
     3: {"Base": ["base"], "Generic Warmth FT (Ibrahim et al., 2026)": ["mc_warm_s1", "mc_warm_s2"],
         "Ours": ["mc_ours_s1", "mc_ours_s2"]},
-    2: {"Base": ["base"],  # one shared base evaluation for all experiments (round 5) "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
+    2: {"Base": ["sg_base_s3407"],  # Exp. 2 base from its own (old) harness; Llama has none "Generic Warmth FT (Ibrahim et al., 2026)": ["sg_warm_s3407"],
         "User-only": ["sg_useronly_s3407"], "Ours": ["sg_ours_s3407"]},
 }
 PANELS = [("qi300", "(a) Harmful-instruction benchmark\n(Qi et al., 2024)"),
@@ -82,7 +82,8 @@ def combined(a):
             t = f"{ename}: " + title.split("\n")[0][4:]
             if path and os.path.exists(path):
                 d = pd.read_csv(path); d = prep(d[d.metric == "harmful%"])
-                draw_panel(ax, d, s, EXP[e], {tuple(x.split(":", 1)) for x in a.skip}, t)
+                sk = {tuple(x.split(":", 1)) for x in a.skip} | ({("llama", "Base")} if e == 2 else set())
+                draw_panel(ax, d, s, EXP[e], sk, t)
                 labels += [l for l in EXP[e] if l not in labels]
             else:
                 ax.set_title(t, fontsize=7.5); ax.text(0.5, 0.5, "pending", ha="center", va="center",
