@@ -40,7 +40,7 @@ print("rows", len(rows)); print(json.dumps(rows[0], ensure_ascii=False)[:800])
 P
   python - <<'P'
 import json
-m=[json.loads(l) for l in open("data/mc/mc_warm_framework.jsonl.meta.jsonl")]
+m=[json.loads(l) for l in open("data/mc/mc_warm_framework.meta.jsonl")]
 bad=[r["index"] for r in m if r.get("user_source")!="orig"]
 print("meta rows", len(m), "| user_source != orig:", len(bad))
 assert not bad, "user turns are NOT the original ones - stop and tell the authors"
