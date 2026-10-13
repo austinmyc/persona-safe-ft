@@ -38,7 +38,14 @@ import json
 rows=[json.loads(l) for l in open("data/mc/mc_warm_framework.jsonl")]
 print("rows", len(rows)); print(json.dumps(rows[0], ensure_ascii=False)[:800])
 P
-  echo "== CHECK the printed row: the USER turn must be the ORIGINAL MentalChat16K message (not low-A)."
+  python - <<'P'
+import json
+m=[json.loads(l) for l in open("data/mc/mc_warm_framework.jsonl.meta.jsonl")]
+bad=[r["index"] for r in m if r.get("user_source")!="orig"]
+print("meta rows", len(m), "| user_source != orig:", len(bad))
+assert not bad, "user turns are NOT the original ones - stop and tell the authors"
+P
+  echo "== OK if 1000 rows and 0 non-orig. The printed USER turn should be the original MentalChat16K message."
   ;;
 train)
   [ -s data/mc/mc_warm_framework.jsonl ] || { echo "run 'data' first"; exit 1; }
