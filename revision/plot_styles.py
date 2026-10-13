@@ -15,7 +15,8 @@ LABELS = [("explicit_refusal", "Explicit refusal", "#2f5597"), ("soft_refusal", 
 # grouped as in Table 1 (None = gap between groups)
 CONDS = [("Base (no fine-tuning)", ["base"]), ("Warm FT", ["mc_warm_s1", "mc_warm_s2"]),
          ("Ours", ["mc_ours_s1", "mc_ours_s2"]), None,
-         ("Paraphrase", ["mc_placebo_s3407"]), ("High-A", ["mc_high_a_s3407"]), ("Low-E", ["mc_low_e_s3407"]), None,
+         ("Paraphrase", ["mc_placebo_s3407"]), ("High-A", ["mc_high_a_s3407"]), ("Low-E", ["mc_low_e_s3407"]),
+         ("Facet prompt", ["mc_ours_v3_s3407"]), None,
          ("Ours \u2212 clause", ["mc_ours_noclause_s3407"]), ("Warm FT + clause", ["mc_warm_clause_s3407"]), None,
          ("Ours + framework", ["mc_ours_framework_s3407"]), ("Framework only", ["mc_warm_framework_s3407"]), None,
          ("Warm FT + mixing", ["mc_warm_mix_s3407"]), ("Ours + mixing", ["mc_ours_mix_s3407"])]
